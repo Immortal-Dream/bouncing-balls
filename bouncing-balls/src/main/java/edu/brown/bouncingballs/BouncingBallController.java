@@ -2,6 +2,7 @@ package edu.brown.bouncingballs;
 
 import javafx.animation.AnimationTimer;
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -9,6 +10,7 @@ import javafx.scene.shape.Circle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+
 /**
  * BouncingBallController class manages the animation of bouncing balls
  * inside an AnchorPane in a JavaFX application.
@@ -19,18 +21,26 @@ import java.util.Random;
 public class BouncingBallController {
 
     @FXML
-    private AnchorPane anchorPane;
+    private AnchorPane anchorPane;  // The main pane where balls bounce
+
+    @FXML
+    private Label scoreLabel;  // Label to display the score
 
     private List<Ball> balls = new ArrayList<>(); // List to store multiple balls
 
     // Random object to generate random values
     private final Random randomGenerator = new Random();
 
+    private int score = 0;  // Variable to track the user's score
+
     /**
      * Initializes the controller. Creates 10 balls with random colors,
      * positions, and velocities and adds them to the AnchorPane.
      */
     public void initialize() {
+        // Initialize the score label
+        scoreLabel.setText("Score: 0");
+
         // Initialize 10 balls with random positions and velocities
         for (int i = 0; i < 10; i++) {
             Circle circle = new Circle(20, getRandomColor());  // Create a circle with radius 20 and random color
@@ -51,6 +61,11 @@ public class BouncingBallController {
                 // Remove the ball from the AnchorPane and the list when clicked
                 anchorPane.getChildren().remove(circle);  // Remove circle from AnchorPane
                 balls.remove(ball);  // Remove ball from the list
+
+                // Calculate score and update it
+                int ballScore = calculateScore(ball);
+                score += ballScore;
+                scoreLabel.setText("Score: " + score);
             });
         }
 
@@ -63,6 +78,7 @@ public class BouncingBallController {
         };
         animationTimer.start(); // Start the animation
     }
+
     /**
      * Updates the positions of all the balls in the ballList.
      * Checks for collisions with the AnchorPane's boundaries and
@@ -90,10 +106,18 @@ public class BouncingBallController {
      * Generates a random color for a ball.
      * @return A randomly generated Color object.
      */
-
     private Color getRandomColor() {
         return Color.rgb(randomGenerator.nextInt(256), randomGenerator.nextInt(256), randomGenerator.nextInt(256));
     }
 
-
+    /**
+     * Calculates the score based on the ball's speed.
+     * Formula: (dx + dy + 10) * 2
+     *
+     * @param ball The ball to calculate the score for.
+     * @return The calculated score.
+     */
+    private int calculateScore(Ball ball) {
+        return (int) ((Math.abs(ball.getDx()) + Math.abs(ball.getDy()) + 10) * 2);
+    }
 }
