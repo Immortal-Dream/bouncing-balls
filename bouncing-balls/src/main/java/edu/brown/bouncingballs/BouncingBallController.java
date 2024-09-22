@@ -22,21 +22,36 @@ public class BouncingBallController {
     private AnchorPane anchorPane;
 
     private List<Ball> balls = new ArrayList<>(); // List to store multiple balls
-    private Random random = new Random();
+
+    // Random object to generate random values
+    private final Random randomGenerator = new Random();
 
     /**
      * Initializes the controller. Creates 10 balls with random colors,
      * positions, and velocities and adds them to the AnchorPane.
      */
     public void initialize() {
+        // Initialize 10 balls with random positions and velocities
         for (int i = 0; i < 10; i++) {
-            Circle circle = new Circle(20, getRandomColor()); // Create a circle with radius 20 and random color
-            circle.setLayoutX(random.nextDouble() * anchorPane.getPrefWidth());
-            circle.setLayoutY(random.nextDouble() * anchorPane.getPrefHeight());
-            double dx = random.nextDouble() * 4 - 2; // Random horizontal speed (-2 to 2)
-            double dy = random.nextDouble() * 4 - 2; // Random vertical speed (-2 to 2)
-            balls.add(new Ball(circle, dx, dy)); // Add ball to list
-            anchorPane.getChildren().add(circle); // Add circle to the AnchorPane
+            Circle circle = new Circle(20, getRandomColor());  // Create a circle with radius 20 and random color
+            circle.setLayoutX(randomGenerator.nextDouble() * anchorPane.getPrefWidth());
+            circle.setLayoutY(randomGenerator.nextDouble() * anchorPane.getPrefHeight());
+            double dx = randomGenerator.nextDouble() * 4 - 2;  // Random horizontal speed (-2 to 2)
+            double dy = randomGenerator.nextDouble() * 4 - 2;  // Random vertical speed (-2 to 2)
+
+            // Add ball to the list
+            Ball ball = new Ball(circle, dx, dy);
+            balls.add(ball);
+
+            // Add the circle to the AnchorPane
+            anchorPane.getChildren().add(circle);
+
+            // Add mouse click listener to the circle
+            circle.setOnMouseClicked(event -> {
+                // Remove the ball from the AnchorPane and the list when clicked
+                anchorPane.getChildren().remove(circle);  // Remove circle from AnchorPane
+                balls.remove(ball);  // Remove ball from the list
+            });
         }
 
         // AnimationTimer to update the position of balls at every frame
@@ -77,39 +92,8 @@ public class BouncingBallController {
      */
 
     private Color getRandomColor() {
-        return Color.rgb(random.nextInt(256), random.nextInt(256), random.nextInt(256));
+        return Color.rgb(randomGenerator.nextInt(256), randomGenerator.nextInt(256), randomGenerator.nextInt(256));
     }
 
-    // Inner class to represent a Ball with position, velocity, and the circle shape
-    public static class Ball {
-        private Circle circle;
-        private double dx; // Horizontal speed
-        private double dy; // Vertical speed
 
-        public Ball(Circle circle, double dx, double dy) {
-            this.circle = circle;
-            this.dx = dx;
-            this.dy = dy;
-        }
-
-        public Circle getCircle() {
-            return circle;
-        }
-
-        public double getDx() {
-            return dx;
-        }
-
-        public void setDx(double dx) {
-            this.dx = dx;
-        }
-
-        public double getDy() {
-            return dy;
-        }
-
-        public void setDy(double dy) {
-            this.dy = dy;
-        }
-    }
 }
