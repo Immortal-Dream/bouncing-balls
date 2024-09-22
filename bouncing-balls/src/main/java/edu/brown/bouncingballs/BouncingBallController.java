@@ -3,13 +3,15 @@ package edu.brown.bouncingballs;
 import javafx.animation.AnimationTimer;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
+import javafx.scene.image.Image;
 import javafx.scene.layout.AnchorPane;
-import javafx.scene.paint.Color;
+import javafx.scene.paint.ImagePattern;
 import javafx.scene.shape.Circle;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+
 
 /**
  * BouncingBallController class manages the animation of bouncing balls
@@ -33,17 +35,28 @@ public class BouncingBallController {
 
     private int score = 0;  // Variable to track the user's score
 
+    // Array to hold the five ball images
+    private final String[] ballImages = {
+            getClass().getResource("/images/ball1.png").toExternalForm(),
+            getClass().getResource("/images/ball2.png").toExternalForm(),
+            getClass().getResource("/images/ball3.png").toExternalForm(),
+            getClass().getResource("/images/ball4.png").toExternalForm(),
+            getClass().getResource("/images/ball5.png").toExternalForm()
+    };
+
     /**
-     * Initializes the controller. Creates 10 balls with random colors,
+     * Initializes the controller. Creates 10 balls with random images,
      * positions, and velocities and adds them to the AnchorPane.
      */
     public void initialize() {
         // Initialize the score label
         scoreLabel.setText("Score: 0");
 
-        // Initialize 10 balls with random positions and velocities
+        // Initialize 10 balls with random positions, velocities, and images
         for (int i = 0; i < 10; i++) {
-            Circle circle = new Circle(20, getRandomColor());  // Create a circle with radius 20 and random color
+            Circle circle = new Circle(20);  // Create a circle with radius 20
+            setRandomBallImage(circle);  // Set a random image for the ball
+
             circle.setLayoutX(randomGenerator.nextDouble() * anchorPane.getPrefWidth());
             circle.setLayoutY(randomGenerator.nextDouble() * anchorPane.getPrefHeight());
             double dx = randomGenerator.nextDouble() * 4 - 2;  // Random horizontal speed (-2 to 2)
@@ -103,11 +116,14 @@ public class BouncingBallController {
     }
 
     /**
-     * Generates a random color for a ball.
-     * @return A randomly generated Color object.
+     * Sets a random ball image from the ballImages array to the given circle.
+     *
+     * @param circle The circle representing the ball.
      */
-    private Color getRandomColor() {
-        return Color.rgb(randomGenerator.nextInt(256), randomGenerator.nextInt(256), randomGenerator.nextInt(256));
+    private void setRandomBallImage(Circle circle) {
+        String randomImagePath = ballImages[randomGenerator.nextInt(ballImages.length)];
+        Image image = new Image(randomImagePath);
+        circle.setFill(new ImagePattern(image));
     }
 
     /**
