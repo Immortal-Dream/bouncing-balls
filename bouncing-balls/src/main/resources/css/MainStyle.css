@@ -1,0 +1,4 @@
+.root {
+    -fx-background-image: url("../images/Field.png");
+    -fx-background-size: cover;
+}

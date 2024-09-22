@@ -11,12 +11,12 @@ public class BouncingBallApp extends Application {
     /**
      * Height of the Screen
      */
-    private static final int HEIGHT = 550;
+    private static final int HEIGHT = 600;
 
     /**
      * Screen's width
      */
-    private static final int WIDTH = 850;
+    private static final int WIDTH = 900;
     /**
      * Start function for the bouncing game
      *
