@@ -1,6 +1,7 @@
 package edu.brown.bouncingballs;
 
 import javafx.animation.AnimationTimer;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
@@ -11,7 +12,8 @@ import javafx.scene.shape.Circle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * BouncingBallController class manages the animation of bouncing balls
@@ -44,16 +46,26 @@ public class BouncingBallController {
             getClass().getResource("/images/ball5.png").toExternalForm()
     };
 
+    // ExecutorService to manage a pool of threads
+    private ExecutorService executorService;
+
     /**
-     * Initializes the controller. Creates 10 balls with random images,
+     * Initializes the controller. Creates balls with random images,
      * positions, and velocities and adds them to the AnchorPane.
      */
     public void initialize() {
         // Initialize the score label
         scoreLabel.setText("Score: 0");
 
-        // Initialize 10 balls with random positions, velocities, and images
-        for (int i = 0; i < 10; i++) {
+        // Define the number of balls and thread pool size
+        int numberOfBalls = 20;    // The number of balls
+        int poolSize = 5;          // Thread pool size
+
+        // Initialize the ExecutorService with a fixed thread pool
+        executorService = Executors.newFixedThreadPool(poolSize);
+
+        // Initialize balls with random positions, velocities, and images
+        for (int i = 0; i < numberOfBalls; i++) {
             Circle circle = new Circle(20);  // Create a circle with radius 20
             setRandomBallImage(circle);  // Set a random image for the ball
 
@@ -63,7 +75,7 @@ public class BouncingBallController {
             double dy = randomGenerator.nextDouble() * 4 - 2;  // Random vertical speed (-2 to 2)
 
             // Add ball to the list
-            Ball ball = new Ball(circle, dx, dy);
+            Ball ball = new Ball(circle, dx, dy, anchorPane.getPrefWidth(), anchorPane.getPrefHeight());
             balls.add(ball);
 
             // Add the circle to the AnchorPane
@@ -93,25 +105,22 @@ public class BouncingBallController {
     }
 
     /**
-     * Updates the positions of all the balls in the ballList.
-     * Checks for collisions with the AnchorPane's boundaries and
-     * reverses the direction of the balls if they hit the boundary.
+     * Updates the positions of all the balls in the list.
+     * Submits each ball's move operation to the thread pool.
      */
     private void update() {
         for (Ball ball : balls) {
-            Circle circle = ball.getCircle();
+            executorService.submit(() -> {
+                // Perform complex computations and update ball's position
+                ball.move();
 
-            // Update ball position
-            circle.setLayoutX(circle.getLayoutX() + ball.getDx());
-            circle.setLayoutY(circle.getLayoutY() + ball.getDy());
-
-            // Check for collision with the bounds of the AnchorPane and reverse direction if necessary
-            if (circle.getLayoutX() <= circle.getRadius() || circle.getLayoutX() >= anchorPane.getPrefWidth() - circle.getRadius()) {
-                ball.setDx(-ball.getDx()); // Reverse horizontal direction
-            }
-            if (circle.getLayoutY() <= circle.getRadius() || circle.getLayoutY() >= anchorPane.getPrefHeight() - circle.getRadius()) {
-                ball.setDy(-ball.getDy()); // Reverse vertical direction
-            }
+                // Update the UI components on the JavaFX Application Thread
+                Platform.runLater(() -> {
+                    Circle circle = ball.getCircle();
+                    circle.setLayoutX(ball.getPosX());
+                    circle.setLayoutY(ball.getPosY());
+                });
+            });
         }
     }
 
@@ -135,5 +144,14 @@ public class BouncingBallController {
      */
     private int calculateScore(Ball ball) {
         return (int) ((Math.abs(ball.getDx()) + Math.abs(ball.getDy()) + 10) * 2);
+    }
+
+    /**
+     * Shutdown the ExecutorService when the application stops.
+     */
+    public void stop() {
+        if (executorService != null) {
+            executorService.shutdownNow();
+        }
     }
 }
