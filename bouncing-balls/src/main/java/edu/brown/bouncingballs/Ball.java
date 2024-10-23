@@ -17,6 +17,7 @@ public class Ball {
     private double posY;    // Current Y position
     private double paneWidth;   // Width of the AnchorPane
     private double paneHeight;  // Height of the AnchorPane
+    private double mass;    // Mass of the ball
 
     public Ball(Circle circle, double dx, double dy, double paneWidth, double paneHeight) {
         this.circle = circle;
@@ -26,6 +27,7 @@ public class Ball {
         this.posY = circle.getLayoutY();
         this.paneWidth = paneWidth;
         this.paneHeight = paneHeight;
+        this.mass = circle.getRadius();  // For simplicity, set mass proportional to radius
     }
 
     public Circle getCircle() {
@@ -52,8 +54,24 @@ public class Ball {
         return posX;
     }
 
+    public void setPosX(double posX) {
+        this.posX = posX;
+    }
+
     public double getPosY() {
         return posY;
+    }
+
+    public void setPosY(double posY) {
+        this.posY = posY;
+    }
+
+    public double getRadius() {
+        return circle.getRadius();
+    }
+
+    public double getMass() {
+        return mass;
     }
 
     /**
@@ -71,11 +89,13 @@ public class Ball {
         posY += dy;
 
         // Check for collision with the bounds of the AnchorPane and reverse direction if necessary
-        if (posX <= circle.getRadius() || posX >= paneWidth - circle.getRadius()) {
+        if (posX <= getRadius() || posX >= paneWidth - getRadius()) {
             dx = -dx; // Reverse horizontal direction
+            posX = Math.max(getRadius(), Math.min(posX, paneWidth - getRadius()));
         }
-        if (posY <= circle.getRadius() || posY >= paneHeight - circle.getRadius()) {
+        if (posY <= getRadius() || posY >= paneHeight - getRadius()) {
             dy = -dy; // Reverse vertical direction
+            posY = Math.max(getRadius(), Math.min(posY, paneHeight - getRadius()));
         }
     }
 }

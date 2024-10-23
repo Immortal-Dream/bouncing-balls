@@ -58,7 +58,7 @@ public class BouncingBallController {
         scoreLabel.setText("Score: 0");
 
         // Define the number of balls and thread pool size
-        int numberOfBalls = 20;    // The number of balls
+        int numberOfBalls = 10;    // The number of balls
         int poolSize = 5;          // Thread pool size
 
         // Initialize the ExecutorService with a fixed thread pool
@@ -69,8 +69,8 @@ public class BouncingBallController {
             Circle circle = new Circle(20);  // Create a circle with radius 20
             setRandomBallImage(circle);  // Set a random image for the ball
 
-            circle.setLayoutX(randomGenerator.nextDouble() * anchorPane.getPrefWidth());
-            circle.setLayoutY(randomGenerator.nextDouble() * anchorPane.getPrefHeight());
+            circle.setLayoutX(randomGenerator.nextDouble() * (anchorPane.getPrefWidth() - 40) + 20);
+            circle.setLayoutY(randomGenerator.nextDouble() * (anchorPane.getPrefHeight() - 40) + 20);
             double dx = randomGenerator.nextDouble() * 4 - 2;  // Random horizontal speed (-2 to 2)
             double dy = randomGenerator.nextDouble() * 4 - 2;  // Random vertical speed (-2 to 2)
 
@@ -107,20 +107,89 @@ public class BouncingBallController {
     /**
      * Updates the positions of all the balls in the list.
      * Submits each ball's move operation to the thread pool.
+     * Handles collision detection and response.
      */
     private void update() {
+        // Move all balls
         for (Ball ball : balls) {
             executorService.submit(() -> {
                 // Perform complex computations and update ball's position
                 ball.move();
-
-                // Update the UI components on the JavaFX Application Thread
-                Platform.runLater(() -> {
-                    Circle circle = ball.getCircle();
-                    circle.setLayoutX(ball.getPosX());
-                    circle.setLayoutY(ball.getPosY());
-                });
             });
+        }
+
+        // Collision detection and response
+        for (int i = 0; i < balls.size(); i++) {
+            Ball ballA = balls.get(i);
+            for (int j = i + 1; j < balls.size(); j++) {
+                Ball ballB = balls.get(j);
+                handleCollision(ballA, ballB);
+            }
+        }
+
+        // Update UI
+        Platform.runLater(() -> {
+            for (Ball ball : balls) {
+                Circle circle = ball.getCircle();
+                circle.setLayoutX(ball.getPosX());
+                circle.setLayoutY(ball.getPosY());
+            }
+        });
+    }
+
+    /**
+     * Handles collision detection and response between two balls.
+     *
+     * @param ballA The first ball.
+     * @param ballB The second ball.
+     */
+    private void handleCollision(Ball ballA, Ball ballB) {
+        double dx = ballB.getPosX() - ballA.getPosX();
+        double dy = ballB.getPosY() - ballA.getPosY();
+        double distance = Math.hypot(dx, dy);
+        double minDist = ballA.getRadius() + ballB.getRadius();
+
+        if (distance < minDist) {
+            // Overlap detected, adjust positions to remove overlap
+            double overlap = 0.5 * (minDist - distance);
+
+            // Normalize the distance vector
+            double nx = dx / distance;
+            double ny = dy / distance;
+
+            // Adjust positions
+            ballA.setPosX(ballA.getPosX() - overlap * nx);
+            ballA.setPosY(ballA.getPosY() - overlap * ny);
+
+            ballB.setPosX(ballB.getPosX() + overlap * nx);
+            ballB.setPosY(ballB.getPosY() + overlap * ny);
+
+            // Calculate relative velocity
+            double vx = ballA.getDx() - ballB.getDx();
+            double vy = ballA.getDy() - ballB.getDy();
+            double vn = vx * nx + vy * ny;
+
+            // If balls are moving apart, no need to adjust velocities
+            if (vn > 0) {
+                return;
+            }
+
+            // Calculate impulse scalar
+            double restitution = 1.0; // Elastic collision
+            double m1 = ballA.getMass();
+            double m2 = ballB.getMass();
+
+            double impulse = (-(1 + restitution) * vn) / (1 / m1 + 1 / m2);
+
+            // Apply impulse to the balls
+            double impulseX = impulse * nx;
+            double impulseY = impulse * ny;
+
+            ballA.setDx(ballA.getDx() + impulseX / m1);
+            ballA.setDy(ballA.getDy() + impulseY / m1);
+
+            ballB.setDx(ballB.getDx() - impulseX / m2);
+            ballB.setDy(ballB.getDy() - impulseY / m2);
         }
     }
 
