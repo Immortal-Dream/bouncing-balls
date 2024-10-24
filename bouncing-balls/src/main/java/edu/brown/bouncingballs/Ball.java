@@ -79,7 +79,7 @@ public class Ball {
      * This method is called within separate threads managed by a thread pool.
      */
     public void move() {
-        // Simulate complex computations (e.g., physics calculations)
+        // Simulate complex computations
         for (int i = 0; i < 100000; i++) {
             Math.sin(i);
         }

@@ -9,35 +9,33 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.paint.ImagePattern;
 import javafx.scene.shape.Circle;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * BouncingBallController class manages the animation of bouncing balls
  * inside an AnchorPane in a JavaFX application.
- *
- * Author: Junhan
- * Purpose: Manage the creation, movement, and collision handling of bouncing balls.
  */
 public class BouncingBallController {
 
     @FXML
     private AnchorPane anchorPane;  // The main pane where balls bounce
-
+    String FILE_NAME = "src/main/resources/data/";
     @FXML
     private Label scoreLabel;  // Label to display the score
 
     private List<Ball> balls = new ArrayList<>(); // List to store multiple balls
-
-    // Random object to generate random values
     private final Random randomGenerator = new Random();
-
     private int score = 0;  // Variable to track the user's score
-
-    // Array to hold the five ball images
     private final String[] ballImages = {
             getClass().getResource("/images/ball1.png").toExternalForm(),
             getClass().getResource("/images/ball2.png").toExternalForm(),
@@ -46,9 +44,11 @@ public class BouncingBallController {
             getClass().getResource("/images/ball5.png").toExternalForm()
     };
 
-    // ExecutorService to manage a pool of threads
     private ExecutorService executorService;
-
+    private final int NUMBER_OF_BALLS = 50;    // The number of balls
+    private final int POOL_SIZE = 50;          // Thread pool size
+    private BufferedWriter writer;
+    private double MILLISECONDS = 1000000.0;
     /**
      * Initializes the controller. Creates balls with random images,
      * positions, and velocities and adds them to the AnchorPane.
@@ -56,16 +56,16 @@ public class BouncingBallController {
     public void initialize() {
         // Initialize the score label
         scoreLabel.setText("Score: 0");
-
-        // Define the number of balls and thread pool size
-        int numberOfBalls = 10;    // The number of balls
-        int poolSize = 5;          // Thread pool size
+        // Initialize the file name
+        FILE_NAME = FILE_NAME + "b_" + NUMBER_OF_BALLS + "_t_" + POOL_SIZE + ".csv";
+        // Initialize the logging system
+        initializeLogger();
 
         // Initialize the ExecutorService with a fixed thread pool
-        executorService = Executors.newFixedThreadPool(poolSize);
+        executorService = Executors.newFixedThreadPool(POOL_SIZE);
 
         // Initialize balls with random positions, velocities, and images
-        for (int i = 0; i < numberOfBalls; i++) {
+        for (int i = 0; i < NUMBER_OF_BALLS; i++) {
             Circle circle = new Circle(20);  // Create a circle with radius 20
             setRandomBallImage(circle);  // Set a random image for the ball
 
@@ -74,20 +74,14 @@ public class BouncingBallController {
             double dx = randomGenerator.nextDouble() * 4 - 2;  // Random horizontal speed (-2 to 2)
             double dy = randomGenerator.nextDouble() * 4 - 2;  // Random vertical speed (-2 to 2)
 
-            // Add ball to the list
             Ball ball = new Ball(circle, dx, dy, anchorPane.getPrefWidth(), anchorPane.getPrefHeight());
             balls.add(ball);
-
-            // Add the circle to the AnchorPane
             anchorPane.getChildren().add(circle);
 
             // Add mouse click listener to the circle
             circle.setOnMouseClicked(event -> {
-                // Remove the ball from the AnchorPane and the list when clicked
                 anchorPane.getChildren().remove(circle);  // Remove circle from AnchorPane
                 balls.remove(ball);  // Remove ball from the list
-
-                // Calculate score and update it
                 int ballScore = calculateScore(ball);
                 score += ballScore;
                 scoreLabel.setText("Score: " + score);
@@ -106,28 +100,31 @@ public class BouncingBallController {
 
     /**
      * Updates the positions of all the balls in the list.
-     * Submits each ball's move operation to the thread pool.
-     * Handles collision detection and response.
+     * Submits each ball's move operation to the thread pool and waits for completion.
      */
     private void update() {
-        // Move all balls
+        long startTime = System.nanoTime();
+
+        // Submit move tasks for each ball and wait for all to complete
+        List<Callable<Void>> moveTasks = new ArrayList<>();
         for (Ball ball : balls) {
-            executorService.submit(() -> {
-                // Perform complex computations and update ball's position
+            moveTasks.add(() -> {
                 ball.move();
+                return null;  // Callable must return something, so we return null
             });
         }
 
-        // Collision detection and response
-        for (int i = 0; i < balls.size(); i++) {
-            Ball ballA = balls.get(i);
-            for (int j = i + 1; j < balls.size(); j++) {
-                Ball ballB = balls.get(j);
-                handleCollision(ballA, ballB);
+        try {
+            // Invoke all tasks and wait for them to complete
+            List<Future<Void>> results = executorService.invokeAll(moveTasks);
+            for (Future<Void> result : results) {
+                result.get(); // Ensure all tasks are done
             }
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
         }
 
-        // Update UI
+        // Move the UI updates to the JavaFX thread
         Platform.runLater(() -> {
             for (Ball ball : balls) {
                 Circle circle = ball.getCircle();
@@ -135,63 +132,44 @@ public class BouncingBallController {
                 circle.setLayoutY(ball.getPosY());
             }
         });
+
+        long endTime = System.nanoTime();
+        long interval = endTime - startTime;
+        logFrameTime(interval / MILLISECONDS);
     }
 
     /**
-     * Handles collision detection and response between two balls.
-     *
-     * @param ballA The first ball.
-     * @param ballB The second ball.
+     * Initialize the logger to record frame times.
      */
-    private void handleCollision(Ball ballA, Ball ballB) {
-        double dx = ballB.getPosX() - ballA.getPosX();
-        double dy = ballB.getPosY() - ballA.getPosY();
-        double distance = Math.hypot(dx, dy);
-        double minDist = ballA.getRadius() + ballB.getRadius();
+    private void initializeLogger() {
 
-        if (distance < minDist) {
-            // Overlap detected, adjust positions to remove overlap
-            double overlap = 0.5 * (minDist - distance);
-
-            // Normalize the distance vector
-            double nx = dx / distance;
-            double ny = dy / distance;
-
-            // Adjust positions
-            ballA.setPosX(ballA.getPosX() - overlap * nx);
-            ballA.setPosY(ballA.getPosY() - overlap * ny);
-
-            ballB.setPosX(ballB.getPosX() + overlap * nx);
-            ballB.setPosY(ballB.getPosY() + overlap * ny);
-
-            // Calculate relative velocity
-            double vx = ballA.getDx() - ballB.getDx();
-            double vy = ballA.getDy() - ballB.getDy();
-            double vn = vx * nx + vy * ny;
-
-            // If balls are moving apart, no need to adjust velocities
-            if (vn > 0) {
-                return;
-            }
-
-            // Calculate impulse scalar
-            double restitution = 1.0; // Elastic collision
-            double m1 = ballA.getMass();
-            double m2 = ballB.getMass();
-
-            double impulse = (-(1 + restitution) * vn) / (1 / m1 + 1 / m2);
-
-            // Apply impulse to the balls
-            double impulseX = impulse * nx;
-            double impulseY = impulse * ny;
-
-            ballA.setDx(ballA.getDx() + impulseX / m1);
-            ballA.setDy(ballA.getDy() + impulseY / m1);
-
-            ballB.setDx(ballB.getDx() - impulseX / m2);
-            ballB.setDy(ballB.getDy() - impulseY / m2);
+        try {
+            writer = new BufferedWriter(new FileWriter(FILE_NAME, true));
+            writer.write("ThreadPoolSize,NumberOfBalls,FrameTime(ms)\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+            writer = null; // If writer fails to initialize, explicitly set it to null
         }
     }
+
+    /**
+     * Logs the frame time along with the thread pool size and number of balls to the file.
+     *
+     * @param frameTime The time for each frame in milliseconds.
+     */
+    private void logFrameTime(double frameTime) {
+        if (writer != null) {
+            try {
+                writer.write(String.format("%d,%d,%.3f\n", NUMBER_OF_BALLS, POOL_SIZE, frameTime));
+                writer.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.err.println("Warning: Attempted to log frame time, but writer is null.");
+        }
+    }
+
 
     /**
      * Sets a random ball image from the ballImages array to the given circle.
@@ -221,6 +199,13 @@ public class BouncingBallController {
     public void stop() {
         if (executorService != null) {
             executorService.shutdownNow();
+        }
+        try {
+            if (writer != null) {
+                writer.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }
